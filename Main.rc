@@ -1,0 +1,16 @@
+#include <Windows.h>
+#include "Resource.h"
+
+IDI_TETRISICON ICON "favicon.ico"
+IDD_DIALOG DIALOGEX 0, 0, 180, 112
+STYLE DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "Tetris³"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT "Select Resolution:", IDC_LTEXT, 10, 8, 60, 8
+    COMBOBOX IDC_RESOLUTION, 10, 20, 160, 200, CBS_DROPDOWNLIST
+    CHECKBOX "Fullscreen", IDC_FULLSCREEN, 10, 37, 100, 16
+    LTEXT "This game requires at least OpenGL 2.1 and GLSL 1.20. Download the OpenGL Extensions Viewer to check your OpenGL version.", IDC_DISCLAIMER, 10, 56, 160, 24
+    DEFPUSHBUTTON "Play", IDOK, 40, 90, 50, 14
+    PUSHBUTTON "Cancel", IDCANCEL, 97, 90, 50, 14
+END

@@ -1,0 +1,100 @@
+#define GLEW_STATIC
+#include <glew/glew.h>
+#include <gl/gl.h>
+
+#include "CRenderer.h"
+
+/*
+    Rendering Stages:
+        0 - Normal-mapped floor
+        1 - Grid and blocks
+        2 - Grid marker
+        3 - Skybox
+        4 - Text
+*/
+
+const char* CRenderer::VertexSource =
+    "#version 120\n"
+    ""
+    "uniform int RenderingStage;"
+    ""
+    "uniform mat4 Model;"
+    "uniform mat4 View;"
+    "uniform mat4 Projection;"
+    "uniform mat3 NormalMatrix;"
+    ""
+    "attribute vec3 Vertex;"
+    "attribute vec2 TexCoord;"
+    "uniform vec4 TextUV;"
+    "attribute vec3 Normal;"
+    ""
+    "varying vec3 Frag_Vertex;"
+    "varying vec2 Frag_TexCoord;"
+    "varying vec3 Frag_Normal;"
+    ""
+    "void main() {"
+    "   Frag_Vertex = (View * Model * vec4(Vertex, 1.0)).xyz;"
+    "   if (RenderingStage == 4) {"
+    "       Frag_TexCoord = TextUV.xy + Vertex.xy * (TextUV.zw - TextUV.xy);"
+    "   } else {"
+    "       Frag_TexCoord = TexCoord;"
+    "   }"
+    "   Frag_Normal = normalize(NormalMatrix * Normal);"
+    "   gl_Position = Projection * View * Model * vec4(Vertex, 1.0);"
+    "}";
+
+const char* CRenderer::FragmentSource =
+    "#version 120\n"
+    ""
+    "uniform int RenderingStage;"
+    ""
+    "uniform vec3 LightPosition;"
+    "uniform sampler2D Texture;"
+    "uniform sampler2D NormalMap;"
+    ""
+    "uniform mat3 NormalMatrix;"
+    "uniform vec3 Colour;"
+    "uniform int Paused;"
+    ""
+    "varying vec3 Frag_Vertex;"
+    "varying vec2 Frag_TexCoord;"
+    "varying vec3 Frag_Normal;"
+    ""
+    "vec3 calcLight(vec3 Vertex, vec3 LightPos, vec3 Normal, vec3 Colour, float atten, float specCoeff) {"
+    "   vec3 LightVector = LightPos - Vertex;"
+    "   float totalAttenuation = (atten * length(LightVector));"
+    "   vec3 normalizedLightVector = normalize(LightVector);"
+    ""
+    "   float NdotL = max(dot(normalizedLightVector, Normal), 0.0);"
+    "   NdotL /= totalAttenuation;"
+    "   NdotL = clamp(NdotL, 0.0, 1.0);"
+    "   vec3 Diffuse = Colour * NdotL;"
+    ""
+    "   vec3 EyeVector = normalize(-Vertex);"
+    "   vec3 ReflectedRay = normalize(reflect(LightVector, Normal));"
+    "   vec3 Specular;"
+    "   if (dot(Normal, normalizedLightVector) <= 0.4) Specular = vec3(0.0);"
+    "   else {"
+    "       Specular = vec3(1.0) * pow(dot(EyeVector, ReflectedRay), specCoeff)/totalAttenuation;"
+    "   }"
+    "   return Diffuse + Specular;"
+    "}"
+    ""
+    "void main() {"
+    "   if (RenderingStage == 0) {"
+    "       mat3 TBN = mat3(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, -1.0), vec3(0.0, 1.0, 0.0));"
+    "       vec3 NormalFromMap = 2.0 * texture2D(NormalMap, Frag_TexCoord).xyz - vec3(1.0);"
+    "       NormalFromMap = TBN * NormalFromMap;"
+    "       vec3 Normal = normalize(NormalMatrix * NormalFromMap);"
+    "       gl_FragColor = texture2D(Texture, Frag_TexCoord) * vec4(calcLight(Frag_Vertex, LightPosition, Normal, vec3(1.0), 0.15, 64), 1.0);"
+    "       gl_FragColor.a = max(0.5 - 0.005*length(Frag_Vertex), 0.0);"
+    "   } else if (RenderingStage == 1) {"
+    "       vec3 Normal = normalize(Frag_Normal);"
+    "       gl_FragColor = vec4(calcLight(Frag_Vertex, LightPosition, Normal, Colour, 0.12, 64), 1.0);"
+    "   } else if (RenderingStage == 2) {"
+    "       gl_FragColor = vec4(Colour, 1.0);"
+    "   } else if (RenderingStage == 3 || RenderingStage == 4) {"
+    "       gl_FragColor = vec4(Colour, 1.0) * texture2D(Texture, Frag_TexCoord);"
+    "   }"
+    "   if (Paused == 1) gl_FragColor *= vec4(0.4, 0.4, 0.4, 1.0);"
+    "}";
